@@ -5,6 +5,8 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     return {
+      // Ensure correct asset URLs when hosted under /tcb-calculator on GitHub Pages
+      base: '/tcb-calculator/',
       server: {
         port: 3000,
         host: '0.0.0.0',
