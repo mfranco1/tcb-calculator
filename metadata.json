@@ -1,0 +1,5 @@
+{
+  "name": "Neonatal Bilirubin Risk Calculator",
+  "description": "An application to assess hyperbilirubinemia risk in newborns using Bhutani, AAP, and Maisels nomograms. It calculates the risk zone and compares bilirubin levels against phototherapy and exchange transfusion thresholds based on user-provided data such as birth time, measurement time, TcB value, and gestational age.",
+  "requestFramePermissions": []
+}
