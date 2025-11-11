@@ -93,22 +93,58 @@ const App: React.FC = () => {
     const handleCopyToClipboard = async () => {
         if (!result) return;
 
-        // Use a regex to robustly split date and time parts, handling multiple separators.
         const parts = input.birthDateTime.split(/\s+-\s+|\s+/);
-        const datePart = parts[0] || '';
-        const timePart = parts[1] || '';
+        const dob = (parts[0] || '').trim() || 'N/A';
+        const tob = (parts[1] || '').trim() || 'N/A';
 
-        const dob = datePart.replace(/\//g, '-');
-        const tob = timePart;
-        
+        const weeks = parseInt(input.gestationalWeeks, 10);
+        const days = input.gestationalDays === '' ? 0 : parseInt(input.gestationalDays, 10);
+
+        const gestationalAgeText = Number.isFinite(weeks)
+            ? `${weeks} weeks ${Number.isFinite(days) ? `${days}/7` : '0/7'} days`
+            : 'N/A';
+
+        const totalWeeks = Number.isFinite(weeks)
+            ? weeks + ((Number.isFinite(days) ? days : 0) / 7)
+            : null;
+
+        const riskCategory = (() => {
+            if (totalWeeks === null) return 'N/A';
+            if (totalWeeks >= 38) {
+                return input.hasRiskFactors ? 'Medium Risk Neonate' : 'Low Risk Neonate';
+            }
+            if (totalWeeks >= 35) {
+                return input.hasRiskFactors ? 'High Risk Neonate' : 'Medium Risk Neonate';
+            }
+            return 'High Risk Neonate';
+        })();
+
+        const holRounded = Math.round(result.hol);
+        const tcbFormatted = result.tcb.toFixed(1);
+
+        const formatThreshold = (threshold: number | string) => {
+            const numericValue = typeof threshold === 'number' ? threshold : parseFloat(threshold as string);
+            if (!Number.isFinite(numericValue)) {
+                return `${threshold}`;
+            }
+            const rounded = Math.round(numericValue * 10) / 10;
+            const withOneDecimal = rounded.toFixed(1);
+            return withOneDecimal.endsWith('.0') ? withOneDecimal.slice(0, -2) : withOneDecimal;
+        };
+
+        const phototherapyThreshold = formatThreshold(result.phototherapy.threshold);
+        const dvetThreshold = formatThreshold(result.exchangeTransfusion.threshold);
+
         const textToCopy = [
             `DOB: ${dob}`,
             `TOB: ${tob}`,
-            `${result.hol} HOL`,
-            `TCB: ${result.tcb}`,
-            `${result.bhutaniZone}`,
-            `${result.phototherapy.status} PTL (${result.phototherapy.threshold})`,
-            `${result.exchangeTransfusion.status} DVET (${result.exchangeTransfusion.threshold})`,
+            `AOG: ${gestationalAgeText}`,
+            `HOL: ${holRounded}`,
+            `${riskCategory}`,
+            `TCB: ${tcbFormatted} mg/dL`,
+            `PHOTOLEVEL: ${result.phototherapy.status} (${phototherapyThreshold})`,
+            `DVET level: ${result.exchangeTransfusion.status} (${dvetThreshold})`,
+            `Bhutani Risk Zone: ${result.bhutaniZone}`,
         ].join('\n');
 
         try {
