@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { CalculationInput, CalculationResult, BhutaniRiskZone, ThresholdStatus } from './types';
 import { calculateBilirubinRisk } from './services/bilirubinCalculator';
 import { BeakerIcon, ChartBarIcon, ClockIcon, SunIcon, CopyIcon, CheckIcon } from './constants';
@@ -18,6 +18,24 @@ const App: React.FC = () => {
     const [error, setError] = useState<string>('');
     const [isCopied, setIsCopied] = useState(false);
     const [toastMessage, setToastMessage] = useState('');
+    const [showRiskHelp, setShowRiskHelp] = useState(false);
+    const riskHelpContainerRef = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+        if (!showRiskHelp) return;
+        const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+            const target = event.target as Node | null;
+            if (riskHelpContainerRef.current && target && !riskHelpContainerRef.current.contains(target)) {
+                setShowRiskHelp(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        document.addEventListener('touchstart', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('touchstart', handleClickOutside);
+        };
+    }, [showRiskHelp]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value, type, checked } = e.target;
@@ -222,9 +240,49 @@ const App: React.FC = () => {
                                     <span>days</span>
                                 </div>
                             </div>
-                             <div className="flex items-center">
-                                <input type="checkbox" id="hasRiskFactors" name="hasRiskFactors" checked={input.hasRiskFactors} onChange={handleChange} className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" />
-                                <label htmlFor="hasRiskFactors" className="ml-2 block text-sm text-gray-900">Has AAP Neurotoxicity Risk Factors?</label>
+                            <div ref={riskHelpContainerRef} className="flex items-center relative">
+                                <input
+                                    type="checkbox"
+                                    id="hasRiskFactors"
+                                    name="hasRiskFactors"
+                                    checked={input.hasRiskFactors}
+                                    onChange={handleChange}
+                                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                />
+                                <label htmlFor="hasRiskFactors" className="ml-2 block text-sm text-gray-900">
+                                    Has AAP Neurotoxicity Risk Factors
+                                </label>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowRiskHelp(v => !v)}
+                                    aria-expanded={showRiskHelp}
+                                    aria-controls="risk-help"
+                                    aria-label="Show AAP neurotoxicity risk factors"
+                                    className="ml-2 w-5 h-5 flex items-center justify-center rounded-full border border-indigo-300 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 text-xs"
+                                    title="Show risk factors"
+                                >
+                                    ?
+                                </button>
+                                {showRiskHelp && (
+                                    <div
+                                        id="risk-help"
+                                        role="dialog"
+                                        aria-label="AAP Neurotoxicity Risk Factors"
+                                        className="absolute top-full left-0 mt-2 w-80 max-w-[calc(100vw-2rem)] max-h-[calc(100vh-6rem)] overflow-y-auto bg-white border border-indigo-200 shadow-xl rounded-lg p-3 z-10 text-sm"
+                                    >
+                                        <p className="font-semibold text-indigo-700 mb-2">AAP Neurotoxicity Risk Factors</p>
+                                        <ul className="list-disc pl-5 space-y-1 text-gray-800">
+                                            <li>Isoimmune hemolytic disease</li>
+                                            <li>G6PD deficiency</li>
+                                            <li>Asphyxia</li>
+                                            <li>Significant lethargy</li>
+                                            <li>Temperature instability</li>
+                                            <li>SEPSIS</li>
+                                            <li>Acidosis</li>
+                                            <li>Albumin &lt;3 g/dL</li>
+                                        </ul>
+                                    </div>
+                                )}
                             </div>
                             {error && <p className="text-red-500 text-sm">{error}</p>}
                             <div className="flex items-center justify-between pt-4">
