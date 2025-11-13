@@ -310,11 +310,20 @@ const App: React.FC = () => {
                                 <button
                                     type="button"
                                     onClick={handleCopyToClipboard}
-                                    className="p-2 rounded-md text-gray-500 hover:bg-gray-200 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:text-indigo-600 disabled:hover:bg-transparent"
-                                    title={isCopied ? "Copied!" : "Copy to clipboard"}
+                                    className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-400 disabled:cursor-not-allowed"
                                     disabled={isCopied}
                                 >
-                                    {isCopied ? <CheckIcon /> : <CopyIcon />}
+                                    {isCopied ? (
+                                        <>
+                                            <CheckIcon />
+                                            <span className="ml-2">Copied!</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <CopyIcon />
+                                            <span className="ml-2">Copy to Clipboard</span>
+                                        </>
+                                    )}
                                 </button>
                             )}
                         </div>
