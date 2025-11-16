@@ -535,6 +535,7 @@ describe('calculateBilirubinRisk', () => {
     gestationalWeeks: 38,
     gestationalDays: 0,
     hasRiskFactors: false,
+    usePediatricCorrectedAge: false,
     ...overrides,
   });
 
@@ -879,6 +880,9 @@ describe('calculateBilirubinRisk', () => {
       expect(result).toHaveProperty('bhutaniZone');
       expect(result).toHaveProperty('phototherapy');
       expect(result).toHaveProperty('exchangeTransfusion');
+      expect(result).toHaveProperty('isUsingMaisels');
+      expect(result).toHaveProperty('isUsingCorrectedAge');
+      expect(result).toHaveProperty('correctedAog');
     });
 
     it('should have correct types for all result fields', () => {
@@ -895,6 +899,9 @@ describe('calculateBilirubinRisk', () => {
       expect(typeof result!.phototherapy.status).toBe('string');
       expect(typeof result!.exchangeTransfusion).toBe('object');
       expect(typeof result!.exchangeTransfusion.status).toBe('string');
+      expect(typeof result!.isUsingMaisels).toBe('boolean');
+      expect(typeof result!.isUsingCorrectedAge).toBe('boolean');
+      expect(result!.correctedAog === null || typeof result!.correctedAog === 'string').toBe(true);
     });
   });
 
@@ -1018,6 +1025,7 @@ describe('Edge cases and boundary tests', () => {
       gestationalWeeks: 38,
       gestationalDays: 0,
       hasRiskFactors: false,
+      usePediatricCorrectedAge: false,
     };
     const result1 = calculateBilirubinRisk(input1);
     expect(result1).not.toBeNull();
@@ -1030,6 +1038,7 @@ describe('Edge cases and boundary tests', () => {
       gestationalWeeks: 38,
       gestationalDays: 0,
       hasRiskFactors: false,
+      usePediatricCorrectedAge: false,
     };
     const result2 = calculateBilirubinRisk(input2);
     expect(result2).not.toBeNull();
@@ -1045,6 +1054,7 @@ describe('Edge cases and boundary tests', () => {
       gestationalWeeks: 38,
       gestationalDays: 0,
       hasRiskFactors: false,
+      usePediatricCorrectedAge: false,
     };
     const resultAt = calculateBilirubinRisk(inputAtThreshold);
     expect(resultAt).not.toBeNull();
@@ -1072,6 +1082,7 @@ describe('Edge cases and boundary tests', () => {
         gestationalWeeks: weeks,
         gestationalDays: days,
         hasRiskFactors: false,
+        usePediatricCorrectedAge: false,
       };
       const result = calculateBilirubinRisk(input);
       expect(result).not.toBeNull();
@@ -1093,6 +1104,7 @@ describe('Edge cases and boundary tests', () => {
       gestationalWeeks: 38,
       gestationalDays: 0,
       hasRiskFactors: false,
+      usePediatricCorrectedAge: false,
     };
     const resultLow = calculateBilirubinRisk(inputLow);
     expect(resultLow).not.toBeNull();
@@ -1139,6 +1151,7 @@ describe('Edge cases and boundary tests', () => {
         gestationalWeeks: 38,
         gestationalDays: 0,
         hasRiskFactors: false,
+        usePediatricCorrectedAge: false,
       };
       const result = calculateBilirubinRisk(input);
       expect(result).not.toBeNull();
@@ -1154,6 +1167,7 @@ describe('Edge cases and boundary tests', () => {
       gestationalWeeks: 38,
       gestationalDays: 0,
       hasRiskFactors: false,
+      usePediatricCorrectedAge: false,
     };
     const resultWithout = calculateBilirubinRisk(inputWithout);
 

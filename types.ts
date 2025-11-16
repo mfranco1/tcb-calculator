@@ -14,6 +14,7 @@ export interface CalculationInput {
   gestationalWeeks: number;
   gestationalDays: number;
   hasRiskFactors: boolean;
+  usePediatricCorrectedAge: boolean;
 }
 
 export type ThresholdStatus = 'ABOVE' | 'BELOW' | 'WITHIN' | 'N/A';
@@ -32,4 +33,7 @@ export interface CalculationResult {
   bhutaniZone: BhutaniRiskZone;
   phototherapy: ThresholdResult;
   exchangeTransfusion: ThresholdResult;
+  isUsingMaisels: boolean;
+  isUsingCorrectedAge: boolean;
+  correctedAog: string | null;
 }

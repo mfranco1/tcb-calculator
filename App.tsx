@@ -11,6 +11,7 @@ const App: React.FC = () => {
         gestationalWeeks: '',
         gestationalDays: '',
         hasRiskFactors: false,
+        usePediatricCorrectedAge: false,
     };
 
     const [input, setInput] = useState(initialState);
@@ -91,6 +92,7 @@ const App: React.FC = () => {
             tcbValue,
             gestationalWeeks,
             gestationalDays,
+            usePediatricCorrectedAge: input.usePediatricCorrectedAge,
         };
 
         const calculationResult = calculateBilirubinRisk(calculationInput);
@@ -115,16 +117,33 @@ const App: React.FC = () => {
         const dob = (parts[0] || '').trim() || 'N/A';
         const tob = (parts[1] || '').trim() || 'N/A';
 
-        const weeks = parseInt(input.gestationalWeeks, 10);
-        const days = input.gestationalDays === '' ? 0 : parseInt(input.gestationalDays, 10);
+        // Format gestational age - use corrected AOG if available
+        let gestationalAgeText: string;
+        if (result.correctedAog) {
+            // Parse correctedAog format "Xw Yd (PCA)" and convert to "X weeks Y/7 days (PCA)"
+            const match = result.correctedAog.match(/(\d+)w\s+(\d+)d\s+\(PCA\)/);
+            if (match) {
+                const correctedWeeks = parseInt(match[1], 10);
+                const correctedDays = parseInt(match[2], 10);
+                gestationalAgeText = `${correctedWeeks} weeks ${correctedDays}/7 days (PCA)`;
+            } else {
+                // Fallback if parsing fails
+                gestationalAgeText = result.correctedAog;
+            }
+        } else {
+            const weeks = parseInt(input.gestationalWeeks, 10);
+            const days = input.gestationalDays === '' ? 0 : parseInt(input.gestationalDays, 10);
+            gestationalAgeText = Number.isFinite(weeks)
+                ? `${weeks} weeks ${Number.isFinite(days) ? `${days}/7` : '0/7'} days`
+                : 'N/A';
+        }
 
-        const gestationalAgeText = Number.isFinite(weeks)
-            ? `${weeks} weeks ${Number.isFinite(days) ? `${days}/7` : '0/7'} days`
-            : 'N/A';
-
-        const totalWeeks = Number.isFinite(weeks)
-            ? weeks + ((Number.isFinite(days) ? days : 0) / 7)
-            : null;
+        const totalWeeks = (() => {
+            const weeks = parseInt(input.gestationalWeeks, 10);
+            const days = input.gestationalDays === '' ? 0 : parseInt(input.gestationalDays, 10);
+            if (!Number.isFinite(weeks)) return null;
+            return weeks + ((Number.isFinite(days) ? days : 0) / 7);
+        })();
 
         const riskCategory = (() => {
             if (totalWeeks === null) return 'N/A';
@@ -157,17 +176,31 @@ const App: React.FC = () => {
         const phototherapyThreshold = formatThreshold(result.phototherapy.threshold);
         const dvetThreshold = formatThreshold(result.exchangeTransfusion.threshold);
 
-        const textToCopy = [
+        // Build clipboard text - omit HOL, risk category, and Bhutani zone when using Maisels
+        const clipboardLines = [
             `DOB: ${dob}`,
             `TOB: ${tob}`,
             `AOG: ${gestationalAgeText}`,
-            `HOL: ${holRounded}`,
-            `${riskCategory}`,
+        ];
+
+        // Only include HOL, risk category, and Bhutani zone if NOT using Maisels
+        if (!result.isUsingMaisels) {
+            clipboardLines.push(`HOL: ${holRounded}`);
+            clipboardLines.push(`${riskCategory}`);
+        }
+
+        clipboardLines.push(
             `TCB: ${tcbFormatted} mg/dL`,
             `PHOTOLEVEL: ${result.phototherapy.status} (${phototherapyThreshold})`,
             `DVET level: ${result.exchangeTransfusion.status} (${dvetThreshold})`,
-            `Bhutani Risk Zone: ${result.bhutaniZone}`,
-        ].join('\n');
+        );
+
+        // Only include Bhutani zone if NOT using Maisels
+        if (!result.isUsingMaisels) {
+            clipboardLines.push(`Bhutani Risk Zone: ${result.bhutaniZone}`);
+        }
+
+        const textToCopy = clipboardLines.join('\n');
 
         try {
             await navigator.clipboard.writeText(textToCopy);
@@ -281,12 +314,25 @@ const App: React.FC = () => {
                                             <li>Asphyxia</li>
                                             <li>Significant lethargy</li>
                                             <li>Temperature instability</li>
-                                            <li>SEPSIS</li>
+                                            <li>Sepsis</li>
                                             <li>Acidosis</li>
                                             <li>Albumin &lt;3 g/dL</li>
                                         </ul>
                                     </div>
                                 )}
+                            </div>
+                            <div className="flex items-center">
+                                <input
+                                    type="checkbox"
+                                    id="usePediatricCorrectedAge"
+                                    name="usePediatricCorrectedAge"
+                                    checked={input.usePediatricCorrectedAge}
+                                    onChange={handleChange}
+                                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                />
+                                <label htmlFor="usePediatricCorrectedAge" className="ml-2 block text-sm text-gray-900">
+                                    Use Pediatric Corrected Age
+                                </label>
                             </div>
                             {error && <p className="text-red-500 text-sm">{error}</p>}
                             <div className="flex items-center justify-between pt-4">
@@ -337,7 +383,7 @@ const App: React.FC = () => {
                                     <h3 className="font-semibold text-gray-800 flex items-center"><ClockIcon /> <span className="ml-2">Age and Measurements</span></h3>
                                     <p className="text-gray-700">Date of Birth: {result.dob} @ {result.tob}</p>
                                     <p className="text-gray-700">Hours of Life: {result.hol} hrs</p>
-                                    <p className="text-gray-700">Gestational Age: {result.aog}</p>
+                                    <p className="text-gray-700">Gestational Age: {result.correctedAog || result.aog}</p>
                                     <p className="text-gray-700">TcB Value: {result.tcb} mg/dL</p>
                                 </div>
                                 <div className="p-4 bg-white rounded-lg shadow">

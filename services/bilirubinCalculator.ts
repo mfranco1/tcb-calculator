@@ -130,7 +130,7 @@ export function getMaiselsThresholds(aog: number, tcb: number): { phototherapy: 
 
 
 export const calculateBilirubinRisk = (input: CalculationInput): CalculationResult | null => {
-    const { birthDateTime, measurementDateTime, tcbValue, gestationalWeeks, gestationalDays, hasRiskFactors } = input;
+    const { birthDateTime, measurementDateTime, tcbValue, gestationalWeeks, gestationalDays, hasRiskFactors, usePediatricCorrectedAge } = input;
 
     if (!birthDateTime || !measurementDateTime || !tcbValue || !gestationalWeeks) {
         return null;
@@ -152,7 +152,27 @@ export const calculateBilirubinRisk = (input: CalculationInput): CalculationResu
     if (measurementDate <= birthDate) return null;
 
     const hol = (measurementDate.getTime() - birthDate.getTime()) / (1000 * 60 * 60);
-    const aogDecimal = gestationalWeeks + (gestationalDays / 7);
+    const originalAogDecimal = gestationalWeeks + (gestationalDays / 7);
+
+    // Calculate corrected gestational age if pediatric corrected age is enabled and original GA < 35 weeks
+    let aogDecimal = originalAogDecimal;
+    let isUsingCorrectedAge = false;
+    let correctedAog: string | null = null;
+    
+    if (usePediatricCorrectedAge && originalAogDecimal < 35) {
+        // Convert hours of life to weeks and add to original gestational age
+        const holInWeeks = hol / (24 * 7);
+        aogDecimal = originalAogDecimal + holInWeeks;
+        isUsingCorrectedAge = true;
+        
+        // Format corrected AOG as "Xw Yd (PCA)"
+        const correctedWeeks = Math.floor(aogDecimal);
+        const correctedDays = Math.round((aogDecimal - correctedWeeks) * 7);
+        correctedAog = `${correctedWeeks}w ${correctedDays}d (PCA)`;
+    }
+
+    // Determine if using Maisels (aogDecimal < 35)
+    const isUsingMaisels = aogDecimal < 35;
 
     // Bhutani zone is only applicable for neonates >= 35 weeks gestational age
     const bhutaniZone = aogDecimal < 35 ? BhutaniRiskZone.NotApplicable : getBhutaniZone(hol, tcbValue);
@@ -174,5 +194,8 @@ export const calculateBilirubinRisk = (input: CalculationInput): CalculationResu
         bhutaniZone,
         phototherapy: therapyThresholds.phototherapy,
         exchangeTransfusion: therapyThresholds.exchangeTransfusion,
+        isUsingMaisels,
+        isUsingCorrectedAge,
+        correctedAog,
     };
 };
