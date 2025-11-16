@@ -141,6 +141,10 @@ const App: React.FC = () => {
         const tcbFormatted = result.tcb.toFixed(1);
 
         const formatThreshold = (threshold: number | string) => {
+            // If it's a string that looks like a range (contains a dash), return as-is
+            if (typeof threshold === 'string' && threshold.includes('-')) {
+                return threshold;
+            }
             const numericValue = typeof threshold === 'number' ? threshold : parseFloat(threshold as string);
             if (!Number.isFinite(numericValue)) {
                 return `${threshold}`;

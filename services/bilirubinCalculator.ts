@@ -21,12 +21,13 @@ const aapDvetData = {
     higherRisk: [[0,8],[24, 15], [48, 17], [72, 18.5], [96, 20], [168, 20.5]] as DataPoints,
 };
 
+// Maisels thresholds as ranges [min, max] for phototherapy and exchange transfusion
 const maiselsData = {
-    28: { pl: 6, dvet: 14 },
-    29: { pl: 8, dvet: 14 },
-    31: { pl: 10, dvet: 16 },
-    33: { pl: 12, dvet: 18 },
-    34: { pl: 14, dvet: 19 },
+    28: { pl: [5, 6] as [number, number], dvet: [11, 14] as [number, number] }, // <28 0/7 weeks
+    29: { pl: [6, 8] as [number, number], dvet: [12, 14] as [number, number] }, // 28 0/7-29 6/7 weeks
+    31: { pl: [8, 10] as [number, number], dvet: [13, 16] as [number, number] }, // 30 0/7-31 6/7 weeks
+    33: { pl: [10, 12] as [number, number], dvet: [15, 18] as [number, number] }, // 32 0/7-33 6/7 weeks
+    34: { pl: [12, 14] as [number, number], dvet: [17, 19] as [number, number] }, // 34 0/7-34 6/7 weeks
 };
 
 function linearInterpolate(points: DataPoints, x: number): number {
@@ -105,14 +106,24 @@ function getMaiselsThresholds(aog: number, tcb: number): { phototherapy: Thresho
     else if (aog < 34) thresholds = maiselsData[33];
     else thresholds = maiselsData[34];
 
+    const [plMin, plMax] = thresholds.pl;
+    const [dvetMin, dvetMax] = thresholds.dvet;
+
+    // Determine status: ABOVE (above max), WITHIN (within range), or BELOW (below min)
+    const getStatus = (value: number, min: number, max: number): ThresholdStatus => {
+        if (value > max) return 'ABOVE';
+        if (value < min) return 'BELOW';
+        return 'WITHIN';
+    };
+
     return {
         phototherapy: {
-            status: tcb >= thresholds.pl ? 'ABOVE' : 'BELOW',
-            threshold: thresholds.pl,
+            status: getStatus(tcb, plMin, plMax),
+            threshold: `${plMin}-${plMax}`,
         },
         exchangeTransfusion: {
-            status: tcb >= thresholds.dvet ? 'ABOVE' : 'BELOW',
-            threshold: thresholds.dvet,
+            status: getStatus(tcb, dvetMin, dvetMax),
+            threshold: `${dvetMin}-${dvetMax}`,
         },
     };
 }
