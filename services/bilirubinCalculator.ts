@@ -30,7 +30,7 @@ const maiselsData = {
     34: { pl: [12, 14] as [number, number], dvet: [17, 19] as [number, number] }, // 34 0/7-34 6/7 weeks
 };
 
-function linearInterpolate(points: DataPoints, x: number): number {
+export function linearInterpolate(points: DataPoints, x: number): number {
     if (x <= points[0][0]) return points[0][1];
     if (x >= points[points.length - 1][0]) return points[points.length - 1][1];
 
@@ -45,7 +45,7 @@ function linearInterpolate(points: DataPoints, x: number): number {
     return y0 + (x - x0) * (y1 - y0) / (x1 - x0);
 }
 
-function getBhutaniZone(hol: number, tcb: number): BhutaniRiskZone {
+export function getBhutaniZone(hol: number, tcb: number): BhutaniRiskZone {
     if (hol > 144) return BhutaniRiskZone.NotApplicable;
 
     const highIntermediateThreshold = linearInterpolate(bhutaniData.highIntermediate, hol);
@@ -60,7 +60,7 @@ function getBhutaniZone(hol: number, tcb: number): BhutaniRiskZone {
     return BhutaniRiskZone.Low;
 }
 
-function getAapThresholds(hol: number, aog: number, hasRiskFactors: boolean, tcb: number): { phototherapy: ThresholdResult, exchangeTransfusion: ThresholdResult } {
+export function getAapThresholds(hol: number, aog: number, hasRiskFactors: boolean, tcb: number): { phototherapy: ThresholdResult, exchangeTransfusion: ThresholdResult } {
     let plCurve: DataPoints;
     let dvetCurve: DataPoints;
 
@@ -98,7 +98,7 @@ function getAapThresholds(hol: number, aog: number, hasRiskFactors: boolean, tcb
 }
 
 
-function getMaiselsThresholds(aog: number, tcb: number): { phototherapy: ThresholdResult, exchangeTransfusion: ThresholdResult } {
+export function getMaiselsThresholds(aog: number, tcb: number): { phototherapy: ThresholdResult, exchangeTransfusion: ThresholdResult } {
     let thresholds;
     if (aog < 28) thresholds = maiselsData[28];
     else if (aog < 30) thresholds = maiselsData[29];
