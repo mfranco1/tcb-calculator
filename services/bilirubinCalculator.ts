@@ -143,7 +143,8 @@ export const calculateBilirubinRisk = (input: CalculationInput): CalculationResu
     const hol = (measurementDate.getTime() - birthDate.getTime()) / (1000 * 60 * 60);
     const aogDecimal = gestationalWeeks + (gestationalDays / 7);
 
-    const bhutaniZone = getBhutaniZone(hol, tcbValue);
+    // Bhutani zone is only applicable for neonates >= 35 weeks gestational age
+    const bhutaniZone = aogDecimal < 35 ? BhutaniRiskZone.NotApplicable : getBhutaniZone(hol, tcbValue);
 
     let therapyThresholds;
 
