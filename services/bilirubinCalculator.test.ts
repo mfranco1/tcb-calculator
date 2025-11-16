@@ -1014,6 +1014,222 @@ describe('calculateBilirubinRisk', () => {
       expect(result!.phototherapy.threshold).toBe(10); // mediumRisk at 24 hours
     });
   });
+
+  describe('Pediatric Corrected Age', () => {
+    it('should not apply corrected age when checkbox is unchecked', () => {
+      const input = createValidInput({
+        gestationalWeeks: 32,
+        gestationalDays: 0,
+        tcbValue: 10,
+        usePediatricCorrectedAge: false,
+        measurementDateTime: '2024-01-08T10:00', // 7 days = 168 hours
+      });
+      const result = calculateBilirubinRisk(input);
+      expect(result).not.toBeNull();
+      expect(result!.isUsingCorrectedAge).toBe(false);
+      expect(result!.correctedAog).toBeNull();
+      expect(result!.isUsingMaisels).toBe(true);
+      // Should use original GA (32 weeks) for Maisels
+      expect(result!.aog).toBe('32w 0d');
+    });
+
+    it('should not apply corrected age when original GA >= 35 weeks even if checkbox is checked', () => {
+      const input = createValidInput({
+        gestationalWeeks: 36,
+        gestationalDays: 0,
+        tcbValue: 10,
+        usePediatricCorrectedAge: true,
+        measurementDateTime: '2024-01-08T10:00', // 7 days = 168 hours
+      });
+      const result = calculateBilirubinRisk(input);
+      expect(result).not.toBeNull();
+      expect(result!.isUsingCorrectedAge).toBe(false);
+      expect(result!.correctedAog).toBeNull();
+      expect(result!.isUsingMaisels).toBe(false);
+      // Should use AAP/Bhutani
+      expect(typeof result!.phototherapy.threshold).toBe('number');
+    });
+
+    it('should apply corrected age when checkbox is checked and original GA < 35 weeks', () => {
+      const input = createValidInput({
+        gestationalWeeks: 31,
+        gestationalDays: 5,
+        tcbValue: 10,
+        usePediatricCorrectedAge: true,
+        measurementDateTime: '2024-01-15T10:00', // 14 days = 336 hours = 2 weeks
+      });
+      const result = calculateBilirubinRisk(input);
+      expect(result).not.toBeNull();
+      expect(result!.isUsingCorrectedAge).toBe(true);
+      expect(result!.correctedAog).not.toBeNull();
+      expect(result!.correctedAog).toContain('(PCA)');
+      // Original GA: 31 + 5/7 = 31.714 weeks
+      // HOL: 336 hours = 2 weeks
+      // Corrected GA: 31.714 + 2 = 33.714 weeks ≈ 33w 5d
+      expect(result!.correctedAog).toMatch(/33w\s+\d+d\s+\(PCA\)/);
+    });
+
+    it('should use corrected GA for Maisels when corrected GA < 35 weeks', () => {
+      const input = createValidInput({
+        gestationalWeeks: 32,
+        gestationalDays: 0,
+        tcbValue: 10,
+        usePediatricCorrectedAge: true,
+        measurementDateTime: '2024-01-03T10:00', // 2 days = 48 hours = 0.286 weeks
+      });
+      const result = calculateBilirubinRisk(input);
+      expect(result).not.toBeNull();
+      expect(result!.isUsingCorrectedAge).toBe(true);
+      expect(result!.isUsingMaisels).toBe(true);
+      // Original GA: 32 weeks
+      // HOL: 48 hours ≈ 0.286 weeks
+      // Corrected GA: 32.286 weeks < 35, so should use Maisels
+      expect(typeof result!.phototherapy.threshold).toBe('string'); // Maisels returns string ranges
+      expect(result!.bhutaniZone).toBe(BhutaniRiskZone.NotApplicable);
+    });
+
+    it('should switch to AAP/Bhutani when corrected GA >= 35 weeks', () => {
+      const input = createValidInput({
+        gestationalWeeks: 34,
+        gestationalDays: 6,
+        tcbValue: 10,
+        usePediatricCorrectedAge: true,
+        hasRiskFactors: false,
+        measurementDateTime: '2024-01-02T10:00', // 1 day = 24 hours
+      });
+      const result = calculateBilirubinRisk(input);
+      expect(result).not.toBeNull();
+      expect(result!.isUsingCorrectedAge).toBe(true);
+      expect(result!.isUsingMaisels).toBe(false);
+      // Original GA: 34 + 6/7 = 34.857 weeks
+      // HOL: 24 hours ≈ 0.143 weeks
+      // Corrected GA: 34.857 + 0.143 = 35.0 weeks >= 35, so should use AAP/Bhutani
+      // HOL is 24 hours which is < 144 hours, so Bhutani zone should be calculated
+      expect(typeof result!.phototherapy.threshold).toBe('number'); // AAP returns numbers
+      expect(result!.bhutaniZone).not.toBe(BhutaniRiskZone.NotApplicable);
+    });
+
+    it('should calculate corrected AOG correctly at 35 week boundary', () => {
+      const input = createValidInput({
+        gestationalWeeks: 34,
+        gestationalDays: 6,
+        tcbValue: 10,
+        usePediatricCorrectedAge: true,
+        measurementDateTime: '2024-01-02T10:00', // 1 day = 24 hours = 0.143 weeks
+      });
+      const result = calculateBilirubinRisk(input);
+      expect(result).not.toBeNull();
+      expect(result!.isUsingCorrectedAge).toBe(true);
+      // Original GA: 34 + 6/7 = 34.857 weeks
+      // HOL: 24 hours ≈ 0.143 weeks
+      // Corrected GA: 34.857 + 0.143 = 35.0 weeks (at boundary)
+      expect(result!.isUsingMaisels).toBe(false); // Should be false at exactly 35
+      expect(typeof result!.phototherapy.threshold).toBe('number');
+    });
+
+    it('should format corrected AOG correctly with weeks and days', () => {
+      const input = createValidInput({
+        gestationalWeeks: 31,
+        gestationalDays: 3,
+        tcbValue: 10,
+        usePediatricCorrectedAge: true,
+        measurementDateTime: '2024-01-08T10:00', // 7 days = 168 hours = 1 week
+      });
+      const result = calculateBilirubinRisk(input);
+      expect(result).not.toBeNull();
+      expect(result!.correctedAog).not.toBeNull();
+      // Original GA: 31 + 3/7 = 31.429 weeks
+      // HOL: 168 hours = 1 week
+      // Corrected GA: 32.429 weeks = 32w 3d
+      expect(result!.correctedAog).toMatch(/^\d+w\s+\d+d\s+\(PCA\)$/);
+      const match = result!.correctedAog!.match(/(\d+)w\s+(\d+)d/);
+      expect(match).not.toBeNull();
+      if (match) {
+        const weeks = parseInt(match[1], 10);
+        const days = parseInt(match[2], 10);
+        expect(weeks).toBeGreaterThanOrEqual(31);
+        expect(weeks).toBeLessThanOrEqual(33);
+        expect(days).toBeGreaterThanOrEqual(0);
+        expect(days).toBeLessThanOrEqual(6);
+      }
+    });
+
+    it('should use corrected GA for AAP thresholds when corrected GA >= 35', () => {
+      const input = createValidInput({
+        gestationalWeeks: 34,
+        gestationalDays: 0,
+        tcbValue: 12,
+        usePediatricCorrectedAge: true,
+        hasRiskFactors: false,
+        measurementDateTime: '2024-01-08T10:00', // 7 days = 168 hours = 1 week
+      });
+      const result = calculateBilirubinRisk(input);
+      expect(result).not.toBeNull();
+      expect(result!.isUsingCorrectedAge).toBe(true);
+      expect(result!.isUsingMaisels).toBe(false);
+      // Original GA: 34 weeks
+      // HOL: 168 hours = 1 week
+      // Corrected GA: 35 weeks
+      // At 168 hours HOL, lowerRisk threshold should be higher than at 24 hours
+      expect(typeof result!.phototherapy.threshold).toBe('number');
+      expect(result!.phototherapy.threshold).toBeGreaterThan(12);
+    });
+
+    it('should use corrected GA for Maisels thresholds when corrected GA < 35', () => {
+      const input = createValidInput({
+        gestationalWeeks: 30,
+        gestationalDays: 0,
+        tcbValue: 9,
+        usePediatricCorrectedAge: true,
+        measurementDateTime: '2024-01-03T10:00', // 2 days = 48 hours
+      });
+      const result = calculateBilirubinRisk(input);
+      expect(result).not.toBeNull();
+      expect(result!.isUsingCorrectedAge).toBe(true);
+      expect(result!.isUsingMaisels).toBe(true);
+      // Original GA: 30 weeks
+      // HOL: 48 hours ≈ 0.286 weeks
+      // Corrected GA: 30.286 weeks < 35, so should use Maisels
+      // For 30-31.6/7 weeks, Maisels threshold is 8-10
+      expect(typeof result!.phototherapy.threshold).toBe('string');
+      expect(result!.phototherapy.threshold).toContain('-');
+    });
+
+    it('should handle multiple weeks of corrected age correctly', () => {
+      const input = createValidInput({
+        gestationalWeeks: 28,
+        gestationalDays: 0,
+        tcbValue: 10,
+        usePediatricCorrectedAge: true,
+        measurementDateTime: '2024-01-29T10:00', // 28 days = 672 hours = 4 weeks
+      });
+      const result = calculateBilirubinRisk(input);
+      expect(result).not.toBeNull();
+      expect(result!.isUsingCorrectedAge).toBe(true);
+      // Original GA: 28 weeks
+      // HOL: 672 hours = 4 weeks
+      // Corrected GA: 32 weeks < 35, so should use Maisels
+      expect(result!.isUsingMaisels).toBe(true);
+      expect(result!.correctedAog).toMatch(/32w\s+\d+d\s+\(PCA\)/);
+    });
+
+    it('should preserve original AOG in result when using corrected age', () => {
+      const input = createValidInput({
+        gestationalWeeks: 32,
+        gestationalDays: 4,
+        tcbValue: 10,
+        usePediatricCorrectedAge: true,
+        measurementDateTime: '2024-01-08T10:00', // 7 days
+      });
+      const result = calculateBilirubinRisk(input);
+      expect(result).not.toBeNull();
+      // Original AOG should still be in result.aog
+      expect(result!.aog).toBe('32w 4d');
+      // Corrected AOG should be in result.correctedAog
+      expect(result!.correctedAog).not.toBeNull();
+      expect(result!.correctedAog).not.toBe(result!.aog);
+    });
+  });
 });
 
 describe('Edge cases and boundary tests', () => {
