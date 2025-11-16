@@ -21,6 +21,8 @@ const App: React.FC = () => {
     const [toastMessage, setToastMessage] = useState('');
     const [showRiskHelp, setShowRiskHelp] = useState(false);
     const riskHelpContainerRef = useRef<HTMLDivElement | null>(null);
+    const [showPcaHelp, setShowPcaHelp] = useState(false);
+    const pcaHelpContainerRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
         if (!showRiskHelp) return;
@@ -38,12 +40,47 @@ const App: React.FC = () => {
         };
     }, [showRiskHelp]);
 
+    useEffect(() => {
+        if (!showPcaHelp) return;
+        const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+            const target = event.target as Node | null;
+            if (pcaHelpContainerRef.current && target && !pcaHelpContainerRef.current.contains(target)) {
+                setShowPcaHelp(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        document.addEventListener('touchstart', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('touchstart', handleClickOutside);
+        };
+    }, [showPcaHelp]);
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value, type, checked } = e.target;
-        setInput(prev => ({
-            ...prev,
-            [name]: type === 'checkbox' ? checked : value,
-        }));
+        setInput(prev => {
+            const updated = {
+                ...prev,
+                [name]: type === 'checkbox' ? checked : value,
+            };
+            
+            // Auto-uncheck PCA if gestational age becomes >= 35 weeks
+            if (name === 'gestationalWeeks' || name === 'gestationalDays') {
+                const gestationalWeeks = name === 'gestationalWeeks' 
+                    ? parseInt(value, 10) 
+                    : parseInt(updated.gestationalWeeks, 10);
+                const gestationalDays = name === 'gestationalDays'
+                    ? (value === '' ? 0 : parseInt(value, 10))
+                    : (updated.gestationalDays === '' ? 0 : parseInt(updated.gestationalDays, 10));
+                
+                // Check if gestational age is >= 35 weeks
+                if (!isNaN(gestationalWeeks) && (gestationalWeeks > 35 || (gestationalWeeks === 35 && gestationalDays > 0))) {
+                    updated.usePediatricCorrectedAge = false;
+                }
+            }
+            
+            return updated;
+        });
     };
 
     const handleSetCurrentTime = () => {
@@ -234,6 +271,14 @@ const App: React.FC = () => {
         }
     };
 
+    // Calculate if PCA checkbox should be enabled (only if gestational age < 35 weeks)
+    const isPcaEnabled = (() => {
+        const gestationalWeeks = parseInt(input.gestationalWeeks, 10);
+        const gestationalDays = input.gestationalDays === '' ? 0 : parseInt(input.gestationalDays, 10);
+        if (isNaN(gestationalWeeks)) return false;
+        return gestationalWeeks < 35 || (gestationalWeeks === 35 && gestationalDays === 0);
+    })();
+
     return (
         <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
             <div className="max-w-4xl w-full bg-white rounded-lg shadow-xl p-8 space-y-8">
@@ -321,18 +366,43 @@ const App: React.FC = () => {
                                     </div>
                                 )}
                             </div>
-                            <div className="flex items-center">
+                            <div ref={pcaHelpContainerRef} className="flex items-center relative">
                                 <input
                                     type="checkbox"
                                     id="usePediatricCorrectedAge"
                                     name="usePediatricCorrectedAge"
                                     checked={input.usePediatricCorrectedAge}
                                     onChange={handleChange}
-                                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                    disabled={!isPcaEnabled}
+                                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed"
                                 />
                                 <label htmlFor="usePediatricCorrectedAge" className="ml-2 block text-sm text-gray-900">
                                     Use Pediatric Corrected Age
                                 </label>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPcaHelp(v => !v)}
+                                    aria-expanded={showPcaHelp}
+                                    aria-controls="pca-help"
+                                    aria-label="Show PCA information"
+                                    className="ml-2 w-5 h-5 flex items-center justify-center rounded-full border border-indigo-300 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 text-xs"
+                                    title="Show PCA information"
+                                >
+                                    ?
+                                </button>
+                                {showPcaHelp && (
+                                    <div
+                                        id="pca-help"
+                                        role="dialog"
+                                        aria-label="Pediatric Corrected Age Information"
+                                        className="absolute top-full left-0 mt-2 w-80 max-w-[calc(100vw-2rem)] max-h-[calc(100vh-6rem)] overflow-y-auto bg-white border border-indigo-200 shadow-xl rounded-lg p-3 z-10 text-sm"
+                                    >
+                                        <p className="font-semibold text-indigo-700 mb-2">Pediatric Corrected Age (PCA)</p>
+                                        <p className="text-gray-800">
+                                            Pediatric Corrected Age (PCA) is only usable if AOG (Age of Gestation) is below 35 weeks.
+                                        </p>
+                                    </div>
+                                )}
                             </div>
                             {error && <p className="text-red-500 text-sm">{error}</p>}
                             <div className="flex items-center justify-between pt-4">
